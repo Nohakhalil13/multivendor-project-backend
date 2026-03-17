@@ -5,6 +5,5 @@ const { protect } = require("../middlewares/authMiddleware"); // هننشئه ب
 
 router.post("/", protect, createVendor);
 router.get("/me", protect, getVendorProfile);
-// router.get("/vendor/orders", protect, getVendorOrders);
 
 module.exports = router;

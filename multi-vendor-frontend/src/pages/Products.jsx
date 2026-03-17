@@ -3,63 +3,106 @@ import api from "../api/axios";
 import ProductCard from "../components/ProductCard";
 
 const Products = () => {
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // لحفظ كل المنتجات
+  const [filteredProducts, setFilteredProducts] = useState([]); // لعرض المنتجات المفلترة
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-     const res = await api.get("/products");
-console.log("DATA_CHECK:", res.data); // ده هيطبع الداتا في المتصفح
-setProducts(Array.isArray(res.data) ? res.data : res.data.products || []);
+        const [prodRes, catRes] = await Promise.all([
+          api.get("/products"),
+          api.get("/categories")
+        ]);
+        
+        const productsData = Array.isArray(prodRes.data) ? prodRes.data : prodRes.data.products || [];
+        setAllProducts(productsData);
+        setFilteredProducts(productsData); // في البداية بنعرض الكل
+        setCategories(catRes.data || []);
       } catch (error) {
-        console.error("Failed to fetch products.", error);
+        console.error("Failed to fetch data.", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
-  // Loading State بستايل نظيف
+  // لوجيك الفلترة (كاتيجوري + بحث)
+  useEffect(() => {
+    let result = allProducts;
+
+    if (activeCategory !== "All") {
+      result = result.filter(p => p.category?.name === activeCategory);
+    }
+
+    if (searchTerm) {
+      result = result.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    setFilteredProducts(result);
+  }, [activeCategory, searchTerm, allProducts]);
+
   if (loading) return (
     <div className="flex justify-center items-center min-h-[60vh]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-gray-500 font-medium">Discovering products...</p>
-      </div>
-    </div>
-  );
-
-  // حالة عدم وجود منتجات
-  if (!products.length) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-      <div className="text-5xl mb-4">🔍</div>
-      <h2 className="text-2xl font-bold text-gray-800">No products found</h2>
-      <p className="text-gray-500 mt-2">Check back later or try a different category.</p>
+       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#10b981]"></div>
     </div>
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div className="bg-white min-h-screen py-8 px-4 sm:px-6 lg:px-20">
       <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="flex justify-between items-end mb-10">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Explore Products</h1>
-            <p className="text-gray-500 mt-1">Found {products.length} premium items for you</p>
-          </div>
-          <button className="hidden md:block bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-gray-50 transition-all">
-            Filter & Sort
-          </button>
+        
+        {/* Title */}
+        <h1 className="text-3xl font-black text-gray-900 mb-8">Products</h1>
+
+        {/* 1. Search Bar - نفس شكل الصورة */}
+        <div className="relative mb-6">
+          <input 
+            type="text" 
+            placeholder="Search for a product..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full p-3 pl-10 border border-gray-200 rounded-xl bg-white text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+          />
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🔍</span>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-          {products.map((product) => (
-            <ProductCard key={product._id} product={product} />
+        {/* 2. Categories Buttons - نفس شكل الصورة */}
+        <div className="flex flex-wrap gap-2 mb-10">
+          <button 
+            onClick={() => setActiveCategory("All")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === "All" ? 'bg-[#10b981] text-white shadow-md shadow-green-100' : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'}`}
+          >
+            All
+          </button>
+          {categories.map(cat => (
+            <button 
+              key={cat._id}
+              onClick={() => setActiveCategory(cat.name)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border border-gray-100 transition-all ${activeCategory === cat.name ? 'bg-[#10b981] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              {cat.name}
+            </button>
           ))}
         </div>
+
+        {/* 3. Products Grid */}
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-20 text-gray-400">
+             <p className="text-4xl mb-2">📦</p>
+             <p>No products found in this category.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-10">
+            {filteredProducts.map((product) => (
+              <ProductCard key={product._id} product={product} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
