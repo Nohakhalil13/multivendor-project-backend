@@ -1,74 +1,93 @@
 const User = require("../models/User");
+const Vendor = require("../models/Vendor");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 
-// Register
-exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
+/**
+ * Helper function to sign JWT Token
+ */
+const signToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+  });
+};
 
-    // check if user exists
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "User already exists" });
+// 1) REGISTER CONTROLLER
+exports.register = catchAsync(async (req, res, next) => {
+  const { name, email, password, role, storeName, address, phoneNumber } = req.body;
 
-    // hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new AppError("This email address is already registered", 400));
+  }
 
-    user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role,
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const user = await User.create({
+    name,
+    email,
+    password: hashedPassword,
+    role: role || "user",
+  });
+
+  if (role === "vendor") {
+    await Vendor.create({
+      user: user._id,
+      storeName: storeName || `${name}'s Store`,
+      address: address || "Not specified",
+      phoneNumber: phoneNumber || "0000000000"
     });
+  }
 
-    // create token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+  const token = signToken(user._id, user.role);
 
-    res.status(201).json({
+  res.status(201).json({
+    status: "success",
+    token,
+    data: {
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
       },
-      token,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
+    },
+  });
+});
+
+// 2) LOGIN CONTROLLER
+exports.login = catchAsync(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // 1) Check if email and password exist
+  if (!email || !password) {
+    return next(new AppError("Please provide email and password", 400));
   }
-};
 
-// Login
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  // 2) Check if user exists and password is correct
+  // FIX: Explicitly select the password field because it's hidden by default in the Schema
+  const user = await User.findOne({ email }).select("+password");
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+  if (!user || !(await bcrypt.compare(password, user.password))) {
+    return next(new AppError("Invalid email or password", 401));
+  }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+  // 3) If everything is okay, send token to client
+  const token = signToken(user._id, user.role);
 
-    // create token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
-
-    res.status(200).json({
+  res.status(200).json({
+    status: "success",
+    token,
+    data: {
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
       },
-      token,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
+    },
+  });
+});

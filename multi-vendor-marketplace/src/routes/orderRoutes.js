@@ -3,18 +3,35 @@ const router = express.Router();
 const { 
   createOrder, 
   getMyOrders, 
-  getVendorOrders // ضيفي الاستيراد ده
+  getVendorOrders 
 } = require("../controllers/orderController");
 
-const { protect } = require("../middlewares/authMiddleware");
+const { protect, authorize } = require("../middlewares/authMiddleware");
 
-// 1. للمشتري: إنشاء طلب جديد
-router.post("/", protect, createOrder);
+/**
+ * All order routes require authentication
+ */
+router.use(protect);
 
-// 2. للمشتري: رؤية طلباته الشخصية
-router.get("/my", protect, getMyOrders);
+/**
+ * @route   POST /api/v1/orders
+ * @desc    Place a new order from current cart
+ * @access  Private (Customer/Vendor/Admin)
+ */
+router.post("/", createOrder);
 
-// 3. للتاجر: رؤية الطلبات اللي تخص منتجاته (السطر اللي سألتي عليه)
-router.get("/vendor/orders", protect, getVendorOrders);
+/**
+ * @route   GET /api/v1/orders/my
+ * @desc    Get order history for the logged-in user
+ * @access  Private (Owner only)
+ */
+router.get("/my", getMyOrders);
+
+/**
+ * @route   GET /api/v1/orders/vendor/all
+ * @desc    Get orders containing items from the vendor's store
+ * @access  Private (Vendor only)
+ */
+router.get("/vendor/all", authorize("vendor", "admin"), getVendorOrders);
 
 module.exports = router;

@@ -1,56 +1,85 @@
 const Vendor = require("../models/Vendor");
 const User = require("../models/User");
+const Order = require("../models/Order");
+const Product = require("../models/Product");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 
-// إنشاء متجر جديد
-exports.createVendor = async (req, res) => {
-  try {
-    const { storeName } = req.body;
-    const userId = req.user.id; // هنعمل auth middleware بعدين
+/**
+ * Create a new vendor profile for an existing user
+ */
+exports.createVendor = catchAsync(async (req, res, next) => {
+  const { storeName, address, phoneNumber } = req.body;
+  const userId = req.user.id;
 
-    const existingVendor = await Vendor.findOne({ user: userId });
-    if (existingVendor)
-      return res.status(400).json({ message: "Vendor already exists" });
-
-    const vendor = await Vendor.create({
-      user: userId,
-      storeName,
-      status: "pending",
-    });
-
-    res.status(201).json(vendor);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
+  // 1) Check if the user already has a registered vendor profile
+  const existingVendor = await Vendor.findOne({ user: userId });
+  if (existingVendor) {
+    return next(new AppError("You already have a registered store with this account", 400));
   }
-};
 
-// جلب بيانات Vendor حسب المستخدم
-exports.getVendorProfile = async (req, res) => {
-  try {
-    const vendor = await Vendor.findOne({ user: req.user.id }).populate("user", "name email role");
-    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+  // 2) Create the vendor record
+  const vendor = await Vendor.create({
+    user: userId,
+    storeName,
+    address,
+    phoneNumber,
+    status: "active", // Default status is active; can be changed to 'pending' for admin review
+  });
 
-    res.status(200).json(vendor);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
+  res.status(201).json({
+    status: "success",
+    data: {
+      vendor
+    },
+  });
+});
+
+/**
+ * Get the vendor profile details for the current logged-in user
+ */
+exports.getVendorProfile = catchAsync(async (req, res, next) => {
+  const vendor = await Vendor.findOne({ user: req.user.id })
+    .populate("user", "name email role");
+
+  if (!vendor) {
+    return next(new AppError("Vendor profile not found for this user. Please complete setup.", 404));
   }
-};
 
-// جلب الطلبات اللي فيها منتجات التاجر الحالي
-exports.getVendorOrders = async (req, res) => {
-  try {
-    const vendor = await Vendor.findOne({ user: req.user.id });
-    if (!vendor) return res.status(404).json({ message: "Vendor profile not found" });
+  res.status(200).json({
+    status: "success",
+    data: {
+      vendor
+    },
+  });
+});
 
-    // بنبحث عن الأوردرات اللي فيها منتج الـ vendor ID بتاعه موجود في الـ items
-    const orders = await Order.find({ "items.product": { $in: await Product.find({ vendor: vendor._id }).distinct("_id") } })
-      .populate("user", "name email")
-      .populate("items.product");
-
-    // فلترة الأوردر عشان التاجر يشوف حاجته بس (اختياري حسب رغبتك)
-    res.status(200).json(orders);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching vendor orders" });
+/**
+ * Fetch all orders containing products belonging to the current vendor
+ */
+exports.getVendorOrders = catchAsync(async (req, res, next) => {
+  // 1) Identify the vendor profile
+  const vendor = await Vendor.findOne({ user: req.user.id });
+  if (!vendor) {
+    return next(new AppError("Vendor profile not found", 404));
   }
-};
+
+  // 2) Retrieve all Product IDs owned by this specific vendor
+  const vendorProductIds = await Product.find({ vendor: vendor._id }).distinct("_id");
+
+  // 3) Find all orders that include any of these vendor-specific products
+  const orders = await Order.find({ 
+    "items.product": { $in: vendorProductIds } 
+  })
+  .populate("user", "name email")
+  .populate("items.product", "name price image")
+  .sort("-createdAt");
+
+  res.status(200).json({
+    status: "success",
+    results: orders.length,
+    data: {
+      orders
+    },
+  });
+});

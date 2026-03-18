@@ -1,90 +1,131 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 
-// 1. إضافة منتج للسلة (شغالة تمام عندك)
-exports.addToCart = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { productId, quantity } = req.body;
+/**
+ * Add a product to the user's shopping cart
+ */
+exports.addToCart = catchAsync(async (req, res, next) => {
+  const userId = req.user.id;
+  const { productId, quantity } = req.body;
 
-    const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+  // 1) Check if product exists in database
+  const product = await Product.findById(productId);
+  if (!product) return next(new AppError("This product no longer exists", 404));
 
-    let cart = await Cart.findOne({ user: userId });
+  // 2) Find user cart
+  let cart = await Cart.findOne({ user: userId });
 
-    if (!cart) {
-      cart = await Cart.create({
-        user: userId,
-        items: [{ product: productId, quantity, price: product.price }],
-      });
-    } else {
-      const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
-
-      if (itemIndex > -1) {
-        cart.items[itemIndex].quantity += quantity;
-      } else {
-        cart.items.push({ product: productId, quantity, price: product.price });
-      }
-    }
-
-    await cart.save();
-    res.status(200).json(cart);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-// 2. جلب سلة المستخدم (حدثتها عشان تجيب الصورة image)
-exports.getCart = async (req, res) => {
-  try {
-    // ضفت "image" هنا عشان تظهر في الكارت
-    const cart = await Cart.findOne({ user: req.user.id }).populate("items.product", "name price image");
-    
-    if (!cart) return res.status(200).json({ cart: { items: [] }, total: 0 });
-
-    const total = cart.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    res.status(200).json({ cart, total });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-// 3. 👇 تحديث الكمية (مهمة لزراير + و -)
-exports.updateCartQuantity = async (req, res) => {
-  try {
-    const { productId, quantity } = req.body;
-    const cart = await Cart.findOne({ user: req.user.id });
-
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
-
+  if (!cart) {
+    // Create new cart if it doesn't exist
+    cart = await Cart.create({
+      user: userId,
+      items: [{ product: productId, quantity, price: product.price }],
+    });
+  } else {
+    // Check if product already exists in cart
     const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
 
     if (itemIndex > -1) {
-      cart.items[itemIndex].quantity = quantity;
-      await cart.save();
-      res.status(200).json(cart);
+      // If product exists, increment quantity
+      cart.items[itemIndex].quantity += quantity;
     } else {
-      res.status(404).json({ message: "Item not found in cart" });
+      // If product doesn't exist, push to items array
+      cart.items.push({ product: productId, quantity, price: product.price });
     }
-  } catch (error) {
-    res.status(500).json({ message: "Error updating quantity" });
   }
-};
 
-// 4. 👇 حذف منتج من السلة (مهمة لزرار إزالة)
-exports.removeItemFromCart = async (req, res) => {
-  try {
-    const cart = await Cart.findOne({ user: req.user.id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+  await cart.save();
+  
+  res.status(200).json({
+    status: "success",
+    data: {
+      cart
+    },
+  });
+});
 
-    // فلترة المنتجات عشان نشيل المنتج اللي اخترناه
-    cart.items = cart.items.filter(item => item.product.toString() !== req.params.productId);
+/**
+ * Get the current user's cart with calculated totals
+ */
+exports.getCart = catchAsync(async (req, res, next) => {
+  const cart = await Cart.findOne({ user: req.user.id })
+    .populate("items.product", "name price image");
+  
+  if (!cart) {
+    return res.status(200).json({
+      status: "success",
+      results: 0,
+      data: {
+        cart: { items: [] }
+      }
+    });
+  }
 
+  // Calculate total price accurately
+  const totalPrice = cart.items.reduce((acc, item) => {
+    // Fallback to original price if product details are missing from system
+    const price = item.product ? item.product.price : item.price;
+    return acc + price * item.quantity;
+  }, 0);
+
+  res.status(200).json({
+    status: "success",
+    totalPrice,
+    results: cart.items.length,
+    data: {
+      cart
+    },
+  });
+});
+
+/**
+ * Update quantity for a specific item in cart
+ */
+exports.updateCartQuantity = catchAsync(async (req, res, next) => {
+  const { productId, quantity } = req.body;
+  
+  if (quantity < 1) {
+    return next(new AppError("Quantity must be at least 1", 400));
+  }
+
+  const cart = await Cart.findOne({ user: req.user.id });
+  if (!cart) return next(new AppError("Cart not found", 404));
+
+  const itemIndex = cart.items.findIndex(item => item.product.toString() === productId);
+
+  if (itemIndex > -1) {
+    cart.items[itemIndex].quantity = quantity;
     await cart.save();
-    res.status(200).json(cart);
-  } catch (error) {
-    res.status(500).json({ message: "Error removing item" });
+    
+    res.status(200).json({
+      status: "success",
+      data: {
+        cart
+      },
+    });
+  } else {
+    return next(new AppError("Product not found in cart", 404));
   }
-};
+});
+
+/**
+ * Remove an item from the cart
+ */
+exports.removeItemFromCart = catchAsync(async (req, res, next) => {
+  const cart = await Cart.findOne({ user: req.user.id });
+  if (!cart) return next(new AppError("Cart not found", 404));
+
+  // Filter out the product to be removed
+  cart.items = cart.items.filter(item => item.product.toString() !== req.params.productId);
+
+  await cart.save();
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      cart
+    },
+  });
+});

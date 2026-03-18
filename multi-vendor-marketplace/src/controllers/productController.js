@@ -1,136 +1,131 @@
 const Product = require("../models/Product");
 const Vendor = require("../models/Vendor");
+const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 
-// إضافة منتج جديد مع صورة
-// إضافة منتج جديد مع صورة - نسخة تصحيح الأخطاء
-exports.createProduct = async (req, res) => {
-  try {
-    console.log("--- New Upload Attempt ---");
-    console.log("1. Body Data:", req.body);
-    console.log("2. File Data:", req.file);
-
-    // التأكد من وجود الفيندور
-    const vendor = await Vendor.findOne({ user: req.user.id });
-    if (!vendor) {
-      console.log("❌ Error: Vendor not found for user ID:", req.user.id);
-      return res.status(400).json({ message: "Vendor profile missing" });
-    }
-
-    const { name, description, price, stock, category } = req.body;
-
-    // التأكد من وجود الـ Category قبل ما نبعتها للمونجو
-    if (!category || category === "undefined" || category === "") {
-      console.log("❌ Error: Category ID is missing or invalid");
-      return res.status(400).json({ message: "Please select a valid category" });
-    }
-
-    const imageUrl = req.file ? req.file.path : "";
-
-    // إنشاء المنتج
-    const product = await Product.create({
-      name,
-      description,
-      price: Number(price), // تحويل السعر لرقم لضمان الفاليديشن
-      stock: Number(stock), // تحويل الاستوك لرقم
-      category: category.trim(), 
-      image: imageUrl,
-      vendor: vendor._id,
-    });
-
-    console.log("✅ Product Created Successfully!");
-    res.status(201).json(product);
-
-  } catch (error) {
-    // السطر ده هيطبع لك في التيرمينال بالظبط إيه اللي ناقص (اسم الحقل)
-    if (error.name === "ValidationError") {
-      console.error("❌ Mongoose Validation Error:", error.message);
-      return res.status(400).json({ message: "Validation Error: " + error.message });
-    }
-    
-    console.error("❌ FULL ERROR:", error);
-    res.status(500).json({ message: "Server Error: " + error.message });
+/**
+ * Create a new product linked to the current vendor
+ */
+exports.createProduct = catchAsync(async (req, res, next) => {
+  // 1) Ensure vendor profile exists for the logged-in user
+  const vendor = await Vendor.findOne({ user: req.user.id });
+  if (!vendor) {
+    return next(new AppError("Vendor profile not found. Please complete your profile first.", 404));
   }
-};
 
-// جلب كل المنتجات (للمشترين)
-// جلب كل المنتجات (للمشترين)
-exports.getProducts = async (req, res) => {
-  try {
-    const products = await Product.find()
-      .populate("category", "name")
-      .populate({
-        path: "vendor",
-        select: "name email", // لو الـ ref على User، استخدمي الحقول اللي في User زي Name
-      });
-    
-    console.log("Products found:", products.length); // عشان نتأكد في التيرمينال
-    res.status(200).json(products);
-  } catch (error) {
-    console.error("Error Fetching Products:", error);
-    res.status(500).json({ message: "Server Error" });
+  const { name, description, price, stock, category } = req.body;
+
+  // 2) Validate category selection
+  if (!category || category === "undefined") {
+    return next(new AppError("Please provide a valid category for the product.", 400));
   }
-};
 
-// جلب منتجات الفيندور الحالي
-exports.getVendorProducts = async (req, res) => {
-  try {
-    const vendor = await Vendor.findOne({ user: req.user.id });
-    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+  // 3) Handle product image path if uploaded
+  const imageUrl = req.file ? req.file.path : "";
 
-    const products = await Product.find({ vendor: vendor._id }).populate("category", "name");
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+  // 4) Create product record
+  const product = await Product.create({
+    name,
+    description,
+    price: Number(price),
+    stock: Number(stock),
+    category: category.trim(),
+    image: imageUrl,
+    vendor: vendor._id,
+  });
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      product
+    },
+  });
+});
+
+/**
+ * Fetch all products for the marketplace (Customer View)
+ */
+exports.getProducts = catchAsync(async (req, res, next) => {
+  const products = await Product.find()
+    .populate("category", "name")
+    .populate("vendor", "storeName email");
+
+  res.status(200).json({
+    status: "success",
+    results: products.length,
+    data: {
+      products
+    },
+  });
+});
+
+/**
+ * Fetch products belonging only to the current vendor (Dashboard View)
+ */
+exports.getVendorProducts = catchAsync(async (req, res, next) => {
+  const vendor = await Vendor.findOne({ user: req.user.id });
+  if (!vendor) return next(new AppError("Vendor profile not found", 404));
+
+  const products = await Product.find({ vendor: vendor._id }).populate("category", "name");
+
+  res.status(200).json({
+    status: "success",
+    results: products.length,
+    data: {
+      products
+    },
+  });
+});
+
+/**
+ * Update an existing product (Authorized for product owner only)
+ */
+exports.updateProduct = catchAsync(async (req, res, next) => {
+  const vendor = await Vendor.findOne({ user: req.user.id });
+  let product = await Product.findById(req.params.id);
+
+  if (!product) return next(new AppError("Product not found", 404));
+
+  // Authorization Check: Only the product owner can edit
+  if (product.vendor.toString() !== vendor._id.toString()) {
+    return next(new AppError("You do not have permission to edit this product", 403));
   }
-};
 
-// تحديث منتج (بما في ذلك الصورة)
-exports.updateProduct = async (req, res) => {
-  try {
-    const vendor = await Vendor.findOne({ user: req.user.id });
-    const product = await Product.findById(req.params.id);
+  const updateData = { ...req.body };
+  if (req.file) updateData.image = req.file.path;
 
-    if (!product) return res.status(404).json({ message: "Product not found" });
+  const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, {
+    new: true,
+    runValidators: true,
+  });
 
-    // التأكد إن الفيندور هو صاحب المنتج
-    if (product.vendor.toString() !== vendor._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
+  res.status(200).json({
+    status: "success",
+    data: {
+      product: updatedProduct
+    },
+  });
+});
 
-    const updateData = { ...req.body };
+/**
+ * Delete a product (Authorized for product owner only)
+ */
+exports.deleteProduct = catchAsync(async (req, res, next) => {
+  const vendor = await Vendor.findOne({ user: req.user.id });
+  const product = await Product.findById(req.params.id);
 
-    // لو الفيندور رفع صورة جديدة في التعديل، نحدث اللينك
-    if (req.file) {
-      updateData.image = req.file.path;
-    }
+  if (!product) return next(new AppError("Product not found", 404));
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
-
-    res.json(updatedProduct);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+  // Authorization Check: Only the product owner can delete
+  if (product.vendor.toString() !== vendor._id.toString()) {
+    return next(new AppError("You do not have permission to delete this product", 403));
   }
-};
 
-// حذف منتج
-exports.deleteProduct = async (req, res) => {
-  try {
-    const vendor = await Vendor.findOne({ user: req.user.id });
-    const product = await Product.findById(req.params.id);
+  await product.deleteOne();
 
-    if (!product) return res.status(404).json({ message: "Product not found" });
-
-    if (product.vendor.toString() !== vendor._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
-    await product.deleteOne();
-    res.json({ message: "Product deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server Error" });
-  }
-};
+  // Status 204: No Content (Standard for successful deletions)
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});

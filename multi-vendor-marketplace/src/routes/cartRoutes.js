@@ -1,18 +1,44 @@
 const express = require("express");
+const router = express.Router();
 const { protect } = require("../middlewares/authMiddleware");
 const { 
   addToCart, 
   getCart, 
-  updateCartQuantity, // هنضيف دي
-  removeItemFromCart  // وهنضيف دي
+  updateCartQuantity, 
+  removeItemFromCart 
 } = require("../controllers/cartController");
 
-const router = express.Router();
+/**
+ * All cart routes are protected and require a valid user token
+ */
+router.use(protect);
 
-// كل العمليات محتاجة حماية (token)
-router.get("/", protect, getCart);             // عرض الكارت
-router.post("/", protect, addToCart);          // إضافة منتج جديد
-router.put("/", protect, updateCartQuantity);   // تحديث الكمية (+ أو -)
-router.delete("/:productId", protect, removeItemFromCart); // مسح منتج من الكارت
+/**
+ * @route   GET /api/v1/cart
+ * @desc    Get the current user's shopping cart
+ * @access  Private (Authenticated User)
+ */
+router.get("/", getCart);
+
+/**
+ * @route   POST /api/v1/cart
+ * @desc    Add a product to the cart
+ * @access  Private (Authenticated User)
+ */
+router.post("/", addToCart);
+
+/**
+ * @route   PUT /api/v1/cart
+ * @desc    Update quantity for a product in the cart
+ * @access  Private (Authenticated User)
+ */
+router.put("/", updateCartQuantity);
+
+/**
+ * @route   DELETE /api/v1/cart/:productId
+ * @desc    Remove a specific product from the cart
+ * @access  Private (Authenticated User)
+ */
+router.delete("/:productId", removeItemFromCart);
 
 module.exports = router;
