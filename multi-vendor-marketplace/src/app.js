@@ -13,12 +13,14 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const path = require("path");
 
 const app = express();
 
 // 1) GLOBAL MIDDLEWARES
 // Security headers
 app.use(helmet());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Enable CORS for cross-origin requests
 app.use(cors({
