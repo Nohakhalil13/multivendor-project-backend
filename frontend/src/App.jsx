@@ -10,6 +10,10 @@ import Home from "./pages/Home";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import About from "./pages/About";
+import Register from "./components/Register";
+import Login from "./components/Login";
+import Cart from "./components/Cart";
+import Checkout from "./components/Cheakout";
 
 /**
  * ScrollToTop Component
@@ -48,9 +52,13 @@ function App() {
         <main className="flex-grow">
           <Routes>
             {/* Primary Routes */}
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<Products />} />
             <Route path="/product/:id" element={<ProductDetails />} /> 
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/about" element={<About />} /> 
             
             {/* Custom 404 - Not Found Page (Editorial Style) */}

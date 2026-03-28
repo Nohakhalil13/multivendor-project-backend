@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Star, Heart, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { addToCartAPI } from "../../api";
 
 /**
  * ProductCard Component (Balanced Luxury Edition)
@@ -31,13 +32,23 @@ const ProductCard = ({ product }) => {
     setIsFavorite(!isFavorite);
   };
 
-  // Handle Cart Addition
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     e.stopPropagation();
-    let cart = JSON.parse(localStorage.getItem('cart')) || [];
-    const index = cart.findIndex((item) => item._id === product._id);
-    index !== -1 ? cart[index].quantity += 1 : cart.push({ ...product, quantity: 1 });
-    localStorage.setItem('cart', JSON.stringify(cart));
+    try {
+      await addToCartAPI(product._id, 1); 
+      
+      alert(`Added ${product.name} to your bag! 🛍️`);
+      
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (err) {
+      console.error("Cart Add Error:", err);
+      if (err.response?.status === 401) {
+        alert("Please Login First!");
+        navigate('/login');
+      } else {
+        alert("Something went wrong, please try again.");
+      }
+    }
   };
 
   const imageUrl = product.image || 'https://via.placeholder.com/400x500?text=Premium+Artifact';
