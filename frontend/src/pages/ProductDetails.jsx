@@ -95,7 +95,7 @@ const ProductDetails = () => {
       navigate("/cart"); // optional
     } catch (error) {
       console.error("Add To Cart Error:", error.response?.data);
-      alert("Error adding to cart ❌");
+      alert("Error adding to cart ");
     }
   };
 

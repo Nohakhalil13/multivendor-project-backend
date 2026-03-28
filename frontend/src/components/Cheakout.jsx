@@ -22,7 +22,7 @@ const Checkout = () => {
   try {
     const res = await api.get("/cart");
 
-    console.log("FULL RESPONSE 👉", res.data); // مهم
+    console.log("FULL RESPONSE 👉", res.data); 
 
     const items =
       res.data?.cart?.items ||
