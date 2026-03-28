@@ -7,9 +7,13 @@ import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 const schema = z.object({
-  username: z.string().min(1, "Username is required"),
+  name: z.string().min(1, "Name is required"), 
   email: z.string().min(1, "Email is required").email("Email is invalid"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["user", "vendor"]).default("user"), 
+  storeName: z.string().optional(),
+  address: z.string().optional(),
+  phoneNumber: z.string().optional(),
 });
 
 const Register = () => {
@@ -23,37 +27,31 @@ const Register = () => {
   const role = watch("role");
 
   const onSubmit = async (formData) => {
-    try {
-      const regRes = await api.post("/auth/register", {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-      });
+  try {
+    const regRes = await api.post("/auth/register", formData); // ابعتي الـ formData كلها أسهل
 
-      const token = regRes.data.token || regRes.data.data?.token;
+    const token = regRes.data.token || regRes.data.data?.token;
 
-      if (token) {
-        localStorage.setItem("token", token);
-
-        if (formData.role === "vendor") {
-          await api.post("/vendors/create", {
-            storeName: formData.storeName,
-            address: formData.address,
-            phoneNumber: formData.phoneNumber,
-          });
-          alert("Vendor account & Store created! 🏪");
-        } else {
-          alert("Registration successful! 🚀");
-        }
-
-        navigate("/products");
+    if (token) {
+      localStorage.setItem("token", token);
+      
+      // لو vendor بنكمل باقي الـ request
+      if (formData.role === "vendor") {
+        await api.post("/vendors/create", {
+          storeName: formData.storeName,
+          address: formData.address,
+          phoneNumber: formData.phoneNumber,
+        });
       }
-    } catch (error) {
-      console.error("Error:", error.response?.data || error.message);
-      alert("Check if email exists or data is missing");
+      
+      alert("Registration successful! 🚀");
+      navigate("/products");
     }
-  };
+  } catch (error) {
+    console.error("Error Details:", error.response?.data);
+    alert(error.response?.data?.message || "Registration failed");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-emerald-50 p-4" dir="ltr">
@@ -75,19 +73,19 @@ const Register = () => {
             </label>
             <input
               type="text"
-              {...register("username")}
-              placeholder="Enter your username..."
+              {...register("name")}
+              placeholder="Enter your name..."
               className={`w-full px-4 py-3 rounded-lg border outline-none transition-all
              ${
-               errors.username
+               errors.name
                  ? "border-red-500 focus:ring-red-200"
                  : "border-emerald-200 border border-gray-300 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
              }`}
             />
 
-            {errors.username && (
+            {errors.name && (
               <p className="text-red-500 text-xs mt-1">
-                {errors.username.message}
+                {errors.name.message}
               </p>
             )}
           </div>

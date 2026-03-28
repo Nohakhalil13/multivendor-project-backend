@@ -14,6 +14,7 @@ import Register from "./components/Register";
 import Login from "./components/Login";
 import Cart from "./components/Cart";
 import Checkout from "./components/Cheakout";
+import Orders from "./components/Order";
 
 /**
  * ScrollToTop Component
@@ -59,6 +60,7 @@ function App() {
             <Route path="/product/:id" element={<ProductDetails />} /> 
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/about" element={<About />} /> 
             
             {/* Custom 404 - Not Found Page (Editorial Style) */}
