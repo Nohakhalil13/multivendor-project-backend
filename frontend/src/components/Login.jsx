@@ -19,30 +19,38 @@ const Login = () => {
     formState: { errors },
   } = useForm({ resolver: zodResolver(schema) });
 
-  const onSubmit = async (data) => {
+const onSubmit = async (data) => {
   try {
     const response = await api.post("/auth/login", data);
     
-    console.log("Server Response:", response.data);
-
     const token = response.data.token || response.data.data?.token;
+    const userData = response.data.user || response.data.data?.user;
 
     if (token) {
       localStorage.setItem("token", token);
       
-      alert("Login successful! Redirecting to products...");
-      navigate("/products");
+      if (userData) {
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
+
+      alert("Login successful! 🎉");
+
+      // التوجيه للمسار الصحيح حسب App.jsx
+      if (userData?.role === "vendor") {
+        navigate("/vendor-dashboard"); // اتأكدي إن ده نفس اللي في الـ App.jsx
+      } else {
+        navigate("/products");
+      }
+      
+      // حركة صايعة عشان الـ Navbar يحس بالتغيير فوراً
+      window.location.reload(); 
+      
     } else {
-      console.error("Login succeeded but NO token was found in the response!");
       alert("Login issue: Token not received.");
     }
-
   } catch (error) {
-    console.error(
-      "Login Error:",
-      error.response ? error.response.data : error.message
-    );
-    alert("Login failed. Please check your credentials.");
+    console.error("Login Error:", error.response?.data || error.message);
+    alert("Login failed. Check your email/password.");
   }
 };
 

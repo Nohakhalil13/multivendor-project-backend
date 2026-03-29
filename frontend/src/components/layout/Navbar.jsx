@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, Menu, X } from 'lucide-react';
+// ضفنا آيكونة LayoutDashboard هنا
+import { ShoppingBag, Heart, User, Search, Menu, X, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
 
 import LogoPng from '../../assets/tradify-logo.png'; 
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState(null); // حالة الـ Role
+  
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -16,6 +18,14 @@ const Navbar = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
+    
+    // نجيب الـ role من التخزين (تأكدي إنك بتخزنيه وقت الـ Login)
+    const storedUser = localStorage.getItem("user"); // أو "role" مباشرة حسب مشروعك
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setUserRole(userData.role);
+    }
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -41,8 +51,24 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-6 max-w-[1440px] flex items-center justify-between">
         
-        {/* --- 1. LEFT SIDE: Actions Suite (User, Cart, Wishlist, Search) --- */}
+        {/* --- 1. LEFT SIDE: Actions Suite --- */}
         <div className="flex items-center gap-2 md:gap-4 order-1 lg:order-none">
+          
+          {/* Dashboard Icon: تظهر فقط للفيندور */}
+          {userRole === 'vendor' && (
+            <button 
+              onClick={() => navigate('/vendor-dashboard')}
+              className="w-9 h-9 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-full hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 group relative"
+              title="Vendor Dashboard"
+            >
+              <LayoutDashboard size={17} strokeWidth={2.5} />
+              {/* Tooltip صغير */}
+              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-black uppercase tracking-widest">
+                Dashboard
+              </span>
+            </button>
+          )}
+
           {/* User Icon */}
           <button 
             onClick={() => navigate('/login')}
@@ -51,7 +77,7 @@ const Navbar = () => {
             <User size={17} strokeWidth={2.5} />
           </button>
 
-          {/* Cart Pill (Modern Black Design) */}
+          {/* Cart Pill */}
           <button 
             onClick={() => navigate('/cart')}
             className="flex items-center gap-3 bg-slate-950 text-white px-4 py-2 rounded-full hover:bg-[#27A376] transition-all duration-500 shadow-lg shadow-slate-200"
@@ -91,7 +117,7 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* --- 3. RIGHT SIDE: Tradify Logo (PNG Image) --- */}
+        {/* --- 3. RIGHT SIDE: Tradify Logo --- */}
         <Link to="/" className="flex items-center shrink-0 order-2 group ml-4">
           <img 
             src={LogoPng} 
@@ -119,6 +145,16 @@ const Navbar = () => {
             className="lg:hidden absolute top-full left-0 w-full bg-white border-t border-slate-100 overflow-hidden shadow-xl"
           >
             <div className="p-6 flex flex-col gap-5">
+              {/* إظهار Dashboard في الموبايل منيو أيضاً للفيندور */}
+              {userRole === 'vendor' && (
+                <Link 
+                  to="/vendor-dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-xs font-black uppercase tracking-widest text-emerald-600 border-b border-slate-50 pb-3 flex items-center gap-2"
+                >
+                  <LayoutDashboard size={14} /> Vendor Dashboard
+                </Link>
+              )}
               {navLinks.map((link) => (
                 <Link 
                   key={link.name} 
