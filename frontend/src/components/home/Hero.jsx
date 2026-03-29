@@ -68,39 +68,32 @@ const Hero = () => {
 
           {/* CTA Buttons with plenty of breathing room */}
           {/* CTA Buttons - ده الجزء اللي هتستبدليه عندك */}
-          <motion.div
-            variants={fadeInUp}
-            initial="hidden"
-            animate="visible"
-            custom={0.4}
-            className="flex flex-wrap items-center gap-5 md:gap-8"
-          >
-            {/* 1. زرار الـ Shop (بقى أنعم وأشيك) */}
-            <button
-              onClick={() => navigate("/products")}
-              className="relative group overflow-hidden bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-2xl hover:shadow-emerald-200/50 active:scale-95"
-            >
-              <span className="relative z-10">Shop Collection</span>
-              <div className="absolute inset-0 bg-emerald-500 translate-y-[100%] group-hover:translate-y-0 transition-transform duration-500" />
-            </button>
+          <motion.div 
+  variants={fadeInUp} initial="hidden" animate="visible" custom={0.4}
+  className="flex flex-wrap items-center gap-5 md:gap-8"
+>
+  {/* 1. زرار الـ Shop (بقى أنعم وأشيك) */}
+  <button 
+    onClick={() => navigate('/products')}
+    className="relative group overflow-hidden bg-slate-900 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-2xl hover:shadow-emerald-200/50 active:scale-95"
+  >
+    <span className="relative z-10">Shop Collection</span>
+    <div className="absolute inset-0 bg-emerald-500 translate-y-[100%] group-hover:translate-y-0 transition-transform duration-500" />
+  </button>
 
-            {/* 2. زرار الـ Login (الألوان اللي طلبتيها - Gradient Style) */}
-            <button
-              onClick={() => navigate("/login")}
-              className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_15px_30px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.7)] hover:-translate-y-1 transition-all active:scale-95"
-            >
-              Login Now
-            </button>
+  {/* 2. زرار الـ Login (الألوان اللي طلبتيها - Gradient Style) */}
+  <button 
+    onClick={() => navigate('/login')}
+    className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white px-10 py-5 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_15px_30px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.7)] hover:-translate-y-1 transition-all active:scale-95"
+  >
+    Login Now
+  </button>
 
-            {/* 3. زرار الـ Story (بلمسة خضراء) */}
-            <button className="group flex items-center gap-3 text-emerald-600 font-black text-[10px] uppercase tracking-[0.2em] hover:text-emerald-900 transition-all">
-              Our Story{" "}
-              <ArrowRight
-                size={14}
-                className="group-hover:translate-x-1 transition-transform"
-              />
-            </button>
-          </motion.div>
+  {/* 3. زرار الـ Story (بلمسة خضراء) */}
+  <button className="group flex items-center gap-3 text-emerald-600 font-black text-[10px] uppercase tracking-[0.2em] hover:text-emerald-900 transition-all">
+    Our Story <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+  </button>
+</motion.div>
         </div>
 
         {/* Right Side: Simple & Focused Visual */}

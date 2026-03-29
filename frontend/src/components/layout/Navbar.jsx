@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-// ضفنا آيكونة LayoutDashboard هنا
 import { ShoppingBag, Heart, User, Search, Menu, X, LayoutDashboard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -9,7 +8,7 @@ import LogoPng from '../../assets/tradify-logo.png';
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [userRole, setUserRole] = useState(null); // حالة الـ Role
+  const [userRole, setUserRole] = useState(null); 
   
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -19,9 +18,13 @@ const Navbar = () => {
       setIsScrolled(window.scrollY > 20);
     };
     
-    // نجيب الـ role من التخزين (تأكدي إنك بتخزنيه وقت الـ Login)
-    const storedUser = localStorage.getItem("user"); // أو "role" مباشرة حسب مشروعك
-    if (storedUser) {
+    // سحب الداتا من الـ localStorage مرة واحدة عند تحميل الصفحة
+    const storedUser = localStorage.getItem("user"); 
+    const storedRole = localStorage.getItem("role"); // تأكدي إنك بتخزني الـ role بـ key اسمه role أو جواه الـ user
+
+    if (storedRole) {
+      setUserRole(storedRole);
+    } else if (storedUser) {
       const userData = JSON.parse(storedUser);
       setUserRole(userData.role);
     }
@@ -34,12 +37,17 @@ const Navbar = () => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
+  // --- مصفوفة اللينكات مع خاصية adminOnly ---
   const navLinks = [
-    { name: 'About', path: '/about' },
-    { name: 'Categories', path: '/categories' },
     { name: 'Products', path: '/products' },
+    { name: 'Categories', path: '/categories' },
+    { name: 'About', path: '/about' },
     { name: 'Home', path: '/' },
+    { name: 'Dashboard', path: '/dashboard-vendor', adminOnly: true },
   ];
+
+  // --- فلترة اللينكات بناءً على الـ Role ---
+  const filteredLinks = navLinks.filter(link => !link.adminOnly || userRole === 'vendor');
 
   return (
     <nav 
@@ -54,15 +62,14 @@ const Navbar = () => {
         {/* --- 1. LEFT SIDE: Actions Suite --- */}
         <div className="flex items-center gap-2 md:gap-4 order-1 lg:order-none">
           
-          {/* Dashboard Icon: تظهر فقط للفيندور */}
+          {/* Dashboard Icon: تظهر فقط للفيندور بجانب الأيكونز التانية */}
           {userRole === 'vendor' && (
             <button 
-              onClick={() => navigate('/vendor-dashboard')}
+              onClick={() => navigate('/dashboard-vendor')}
               className="w-9 h-9 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-full hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100 group relative"
               title="Vendor Dashboard"
             >
               <LayoutDashboard size={17} strokeWidth={2.5} />
-              {/* Tooltip صغير */}
               <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-black uppercase tracking-widest">
                 Dashboard
               </span>
@@ -99,9 +106,9 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* --- 2. CENTER: Navigation Links --- */}
+        {/* --- 2. CENTER: Navigation Links (Filtered) --- */}
         <div className="hidden lg:flex items-center gap-9">
-          {navLinks.map((link) => (
+          {filteredLinks.map((link) => (
             <Link 
               key={link.name} 
               to={link.path}
@@ -145,22 +152,14 @@ const Navbar = () => {
             className="lg:hidden absolute top-full left-0 w-full bg-white border-t border-slate-100 overflow-hidden shadow-xl"
           >
             <div className="p-6 flex flex-col gap-5">
-              {/* إظهار Dashboard في الموبايل منيو أيضاً للفيندور */}
-              {userRole === 'vendor' && (
-                <Link 
-                  to="/vendor-dashboard"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-xs font-black uppercase tracking-widest text-emerald-600 border-b border-slate-50 pb-3 flex items-center gap-2"
-                >
-                  <LayoutDashboard size={14} /> Vendor Dashboard
-                </Link>
-              )}
-              {navLinks.map((link) => (
+              {filteredLinks.map((link) => (
                 <Link 
                   key={link.name} 
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-xs font-black uppercase tracking-widest text-slate-900 border-b border-slate-50 pb-3 last:border-0"
+                  className={`text-xs font-black uppercase tracking-widest border-b border-slate-50 pb-3 last:border-0 ${
+                    link.adminOnly ? 'text-emerald-600' : 'text-slate-900'
+                  }`}
                 >
                   {link.name}
                 </Link>
