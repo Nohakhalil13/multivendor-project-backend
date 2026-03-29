@@ -35,7 +35,6 @@ const Register = () => {
     if (token) {
       localStorage.setItem("token", token);
       
-      // لو vendor بنكمل باقي الـ request
       if (formData.role === "vendor") {
         await api.post("/vendors/create", {
           storeName: formData.storeName,
@@ -44,7 +43,7 @@ const Register = () => {
         });
       }
       
-      alert("Registration successful! 🚀");
+      alert("Registration successful! ");
       navigate("/products");
     }
   } catch (error) {

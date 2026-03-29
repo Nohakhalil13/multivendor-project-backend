@@ -81,7 +81,7 @@ export const getCartAPI = async () => {
   }
 };
 
-/* ================= ORDERS (🔥 الجديد) ================= */
+/* ================= ORDERS  ================= */
 
 // 🟢 create order
 export const createOrderAPI = async (orderData) => {
